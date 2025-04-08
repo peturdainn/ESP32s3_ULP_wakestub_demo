@@ -43,6 +43,7 @@ static const char RTC_IRAM_ATTR wakestubstring[] = "WAKESTUB %s";
 static const char RTC_IRAM_ATTR wakestubstart[] = "start\n";
 static const char RTC_IRAM_ATTR wakestubsleep[] = "sleep\n";
 static const char RTC_IRAM_ATTR wakestubboot[] = "boot\n";
+static const char RTC_IRAM_ATTR wakestubedge[] = "edge!\n";
 
 // create some delay to get the bytes out of the UART
 RTC_IRAM_ATTR void rtc_delay()
@@ -62,7 +63,24 @@ static void RTC_IRAM_ATTR main_wakeup_stub(void)
 
     bool sleep_not_boot = true; // modify based on whatever you monitor during deep sleep ;)
 
-    esp_default_wake_deep_sleep();  // this is the default wake from deep sleep function
+    // this is the default wake from deep sleep function
+    // I once saw a recommendation to call the default function but I see no difference
+    // so the below call can probably be left out
+    esp_default_wake_deep_sleep();
+
+    uint32_t wakeup_cause = REG_GET_FIELD(RTC_CNTL_SLP_WAKEUP_CAUSE_REG, RTC_CNTL_WAKEUP_CAUSE);
+
+    if (wakeup_cause & RTC_COCPU_TRIG_EN)
+    {
+        ets_printf(wakestubstring, wakestubedge);
+        rtc_delay();
+    }
+/*
+    // enable this code if you need to trap execution problems from the ULP
+    if (wakeup_cause & RTC_COCPU_TRAP_TRIG_EN)
+    {
+    }
+*/
 
     // disable the pending ULP interrupt so we don't wakeup again from the event
     SET_PERI_REG_MASK(RTC_CNTL_INT_CLR_REG, RTC_CNTL_COCPU_INT_CLR);   
